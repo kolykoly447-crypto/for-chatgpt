@@ -1,0 +1,1 @@
+This file triggers the Windows desktop build workflow. The executable is produced by GitHub Actions.
