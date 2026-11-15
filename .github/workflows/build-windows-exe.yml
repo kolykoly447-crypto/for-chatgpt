@@ -23,8 +23,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
-          cache-dependency-path: "half-life 3 -3d-web/half-life-3-web-3d/package-lock.json"
       - name: Install dependencies
         run: npm install
       - name: Build Windows installer and portable EXE
