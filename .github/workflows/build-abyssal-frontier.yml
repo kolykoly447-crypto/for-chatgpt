@@ -3,7 +3,7 @@ name: Build Abyssal Frontier for Windows
 on:
   push:
     paths:
-      - "AbyssalFrontier_Godot_4_7_2.zip"
+      - "AbyssalFrontier/**"
       - ".github/workflows/build-abyssal-frontier.yml"
   workflow_dispatch:
 
@@ -21,6 +21,7 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          $ProgressPreference = "SilentlyContinue"
           $base = "https://godot-releases.nbg1.your-objectstorage.com/4.7.2-stable"
           $editorZip = Join-Path $env:RUNNER_TEMP "godot-editor.zip"
           $templatesZip = Join-Path $env:RUNNER_TEMP "godot-templates.tpz"
@@ -29,54 +30,43 @@ jobs:
 
           Invoke-WebRequest -Uri "$base/Godot_v4.7.2-stable_win64.exe.zip" -OutFile $editorZip
           Expand-Archive -LiteralPath $editorZip -DestinationPath $editorDir -Force
-
           $godot = Get-ChildItem -Path $editorDir -Recurse -File -Filter "Godot_v4.7.2-stable_win64_console.exe" | Select-Object -First 1
           if (-not $godot) {
             $godot = Get-ChildItem -Path $editorDir -Recurse -File -Filter "Godot_v4.7.2-stable_win64.exe" | Select-Object -First 1
           }
-          if (-not $godot) { throw "Could not find the Godot 4.7.2 Windows editor executable." }
+          if (-not $godot) { throw "Could not find the Godot 4.7.2 editor executable." }
 
           Invoke-WebRequest -Uri "$base/Godot_v4.7.2-stable_export_templates.tpz" -OutFile $templatesZip
           Expand-Archive -LiteralPath $templatesZip -DestinationPath $templatesDir -Force
-
           $templateFile = Get-ChildItem -Path $templatesDir -Recurse -File -Filter "windows_release_x86_64.exe" | Select-Object -First 1
-          if (-not $templateFile) { throw "The Windows x86_64 export template was not found in the official template archive." }
+          if (-not $templateFile) { throw "Windows x86_64 export template was not found." }
 
           $versionDir = Join-Path $env:APPDATA "Godot\export_templates\4.7.2.stable"
           New-Item -ItemType Directory -Path $versionDir -Force | Out-Null
           Copy-Item -Path (Join-Path $templateFile.Directory.FullName "*") -Destination $versionDir -Recurse -Force
-
           "GODOT_EXE=$($godot.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           Write-Host "Using Godot: $($godot.FullName)"
-          Write-Host "Installed templates in: $versionDir"
-
-      - name: Extract project archive
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = "Stop"
-          $projectRoot = Join-Path $env:RUNNER_TEMP "AbyssalFrontier"
-          Expand-Archive -LiteralPath "$env:GITHUB_WORKSPACE\AbyssalFrontier_Godot_4_7_2.zip" -DestinationPath $projectRoot -Force
-          $projectDir = Join-Path $projectRoot "AbyssalFrontier"
-          if (-not (Test-Path (Join-Path $projectDir "project.godot"))) { throw "project.godot was not found in the archive." }
-          "AF_PROJECT_DIR=$projectDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Validate Godot project
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          & $env:GODOT_EXE --headless --editor --path "$env:AF_PROJECT_DIR" --quit
+          $projectDir = Join-Path $env:GITHUB_WORKSPACE "AbyssalFrontier"
+          if (-not (Test-Path (Join-Path $projectDir "project.godot"))) { throw "AbyssalFrontier/project.godot is missing." }
+          & $env:GODOT_EXE --headless --editor --path "$projectDir" --quit
           if ($LASTEXITCODE -ne 0) { throw "Godot project validation failed with exit code $LASTEXITCODE." }
 
       - name: Export Windows x64 executable
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
+          $projectDir = Join-Path $env:GITHUB_WORKSPACE "AbyssalFrontier"
           $outputDir = Join-Path $env:GITHUB_WORKSPACE "dist"
           New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
           $exePath = Join-Path $outputDir "AbyssalFrontier.exe"
-          & $env:GODOT_EXE --headless --path "$env:AF_PROJECT_DIR" --export-release "Windows Desktop" "$exePath"
+          & $env:GODOT_EXE --headless --path "$projectDir" --export-release "Windows Desktop" "$exePath"
           if ($LASTEXITCODE -ne 0) { throw "Godot export failed with exit code $LASTEXITCODE." }
-          if (-not (Test-Path $exePath)) { throw "Godot reported success, but AbyssalFrontier.exe was not created." }
+          if (-not (Test-Path $exePath)) { throw "AbyssalFrontier.exe was not created." }
           Write-Host "Created $exePath"
 
       - name: Upload Windows executable
