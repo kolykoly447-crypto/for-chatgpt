@@ -28,7 +28,23 @@ jobs:
           $editorDir = Join-Path $env:RUNNER_TEMP "godot-editor"
           $templatesDir = Join-Path $env:RUNNER_TEMP "godot-templates"
 
-          Invoke-WebRequest -Uri "$base/Godot_v4.7.2-stable_win64.exe.zip" -OutFile $editorZip
+          function Download-WithRetry([string]$Uri, [string]$Destination) {
+            for ($attempt = 1; $attempt -le 5; $attempt++) {
+              Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
+              Write-Host "Downloading $Uri (attempt $attempt of 5)"
+              & curl.exe --fail --location --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 45 --max-time 2400 --output $Destination $Uri
+              $curlExit = $LASTEXITCODE
+              if ($curlExit -eq 0 -and (Test-Path -LiteralPath $Destination) -and (Get-Item -LiteralPath $Destination).Length -gt 1000000) {
+                Write-Host "Download complete: $Destination ($((Get-Item -LiteralPath $Destination).Length) bytes)"
+                return
+              }
+              Write-Warning "Download attempt $attempt failed (curl exit $curlExit)."
+              Start-Sleep -Seconds (10 * $attempt)
+            }
+            throw "Could not download $Uri after 5 attempts."
+          }
+
+          Download-WithRetry "$base/Godot_v4.7.2-stable_win64.exe.zip" $editorZip
           Expand-Archive -LiteralPath $editorZip -DestinationPath $editorDir -Force
           $godot = Get-ChildItem -Path $editorDir -Recurse -File -Filter "Godot_v4.7.2-stable_win64_console.exe" | Select-Object -First 1
           if (-not $godot) {
@@ -36,7 +52,7 @@ jobs:
           }
           if (-not $godot) { throw "Could not find the Godot 4.7.2 editor executable." }
 
-          Invoke-WebRequest -Uri "$base/Godot_v4.7.2-stable_export_templates.tpz" -OutFile $templatesZip
+          Download-WithRetry "$base/Godot_v4.7.2-stable_export_templates.tpz" $templatesZip
           Expand-Archive -LiteralPath $templatesZip -DestinationPath $templatesDir -Force
           $templateFile = Get-ChildItem -Path $templatesDir -Recurse -File -Filter "windows_release_x86_64.exe" | Select-Object -First 1
           if (-not $templateFile) { throw "Windows x86_64 export template was not found." }
