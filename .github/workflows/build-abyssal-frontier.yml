@@ -22,26 +22,25 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           $ProgressPreference = "SilentlyContinue"
-          $base = "https://godot-releases.nbg1.your-objectstorage.com/4.7.2-stable"
+          $base = "https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable"
           $editorZip = Join-Path $env:RUNNER_TEMP "godot-editor.zip"
           $templatesZip = Join-Path $env:RUNNER_TEMP "godot-templates.tpz"
           $editorDir = Join-Path $env:RUNNER_TEMP "godot-editor"
           $templatesDir = Join-Path $env:RUNNER_TEMP "godot-templates"
 
           function Download-WithRetry([string]$Uri, [string]$Destination) {
-            for ($attempt = 1; $attempt -le 5; $attempt++) {
-              Remove-Item -LiteralPath $Destination -Force -ErrorAction SilentlyContinue
-              Write-Host "Downloading $Uri (attempt $attempt of 5)"
-              & curl.exe --fail --location --silent --show-error --retry 5 --retry-all-errors --retry-delay 5 --connect-timeout 45 --max-time 2400 --output $Destination $Uri
+            for ($attempt = 1; $attempt -le 8; $attempt++) {
+              Write-Host "Downloading or resuming $Uri (attempt $attempt of 8)"
+              & curl.exe --fail --location --silent --show-error --retry 3 --retry-all-errors --retry-delay 8 --connect-timeout 60 --max-time 2400 --continue-at - --output $Destination $Uri
               $curlExit = $LASTEXITCODE
               if ($curlExit -eq 0 -and (Test-Path -LiteralPath $Destination) -and (Get-Item -LiteralPath $Destination).Length -gt 1000000) {
                 Write-Host "Download complete: $Destination ($((Get-Item -LiteralPath $Destination).Length) bytes)"
                 return
               }
-              Write-Warning "Download attempt $attempt failed (curl exit $curlExit)."
-              Start-Sleep -Seconds (10 * $attempt)
+              Write-Warning "Download attempt $attempt failed (curl exit $curlExit); keeping partial data for resume."
+              Start-Sleep -Seconds (8 * $attempt)
             }
-            throw "Could not download $Uri after 5 attempts."
+            throw "Could not download $Uri after 8 resumable attempts."
           }
 
           Download-WithRetry "$base/Godot_v4.7.2-stable_win64.exe.zip" $editorZip
