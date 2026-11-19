@@ -1,4 +1,4 @@
-name: Build HALF-LIFE 3 for Windows
+name: Build AFTERSIGNAL for Windows
 
 on:
   workflow_dispatch:
@@ -24,13 +24,13 @@ jobs:
         with:
           node-version: 20
       - name: Install dependencies
-        run: npm install
-      - name: Build Windows installer and portable EXE
+        run: npm install --no-audit --no-fund
+      - name: Build AFTERSIGNAL installer and portable EXE
         run: npm run dist:win
-      - name: Upload EXE files
+      - name: Upload Windows executables
         uses: actions/upload-artifact@v4
         with:
-          name: HALF-LIFE-3-Windows
+          name: AFTERSIGNAL-Windows
           path: |
             half-life 3 -3d-web/half-life-3-web-3d/dist/*.exe
           if-no-files-found: error
