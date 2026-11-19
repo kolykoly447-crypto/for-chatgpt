@@ -1,44 +1,36 @@
 {
-  "name": "half-life-3-fan-game",
-  "version": "1.0.0",
+  "name": "aftersignal-fan-game",
+  "version": "1.1.0",
   "private": true,
-  "description": "Original fan-made sci-fi FPS prototype packaged as a Windows desktop app",
+  "description": "AFTERSIGNAL: A Black Mesa Incident — original retro sci-fi browser FPS",
   "main": "main.cjs",
   "scripts": {
     "start": "electron .",
     "dist:win": "electron-builder --win nsis portable"
+  },
+  "dependencies": {
+    "three": "0.170.0"
   },
   "devDependencies": {
     "electron": "^33.2.1",
     "electron-builder": "^25.1.8"
   },
   "build": {
-    "appId": "com.fanproject.halflife3",
-    "productName": "HALF-LIFE 3",
-    "directories": {
-      "output": "dist"
-    },
+    "appId": "com.fanproject.aftersignal",
+    "productName": "AFTERSIGNAL",
+    "directories": {"output": "dist"},
     "files": [
       "index.html",
       "style.css",
       "src/**/*",
       "main.cjs",
-      "package.json"
+      "package.json",
+      "node_modules/three/**/*"
     ],
     "win": {
       "target": [
-        {
-          "target": "nsis",
-          "arch": [
-            "x64"
-          ]
-        },
-        {
-          "target": "portable",
-          "arch": [
-            "x64"
-          ]
-        }
+        {"target": "nsis", "arch": ["x64"]},
+        {"target": "portable", "arch": ["x64"]}
       ]
     },
     "nsis": {

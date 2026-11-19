@@ -1,47 +1,57 @@
-# AFTERSIGNAL — A Black Mesa Incident (3D browser build)
+# AFTERSIGNAL — A Black Mesa Incident
 
-An original, fan-made, retro sci-fi first-person shooter prototype. It is inspired by broad genre conventions and the atmosphere of classic science-fiction shooters, but uses original code, map layout, story, UI and procedural geometry. It is not an official Half-Life product and contains no Valve game assets, dialogue, music or maps.
+An original fan-made retro sci-fi first-person shooter built with HTML, CSS, JavaScript and Three.js. It uses an original story, level layout, interface and procedural geometry. It is not an official Half-Life product and does not contain Valve game code or assets.
 
-## Run
+## Run in a browser
 
-This build uses Three.js as an ES module from jsDelivr. An internet connection is required to load Three.js (and optional web fonts).
+1. Install Node.js 20 or newer.
+2. Open a terminal in this folder and run `npm install`.
+3. Start a local web server with `python -m http.server 8000`.
+4. Open `http://localhost:8000` in a modern browser.
+5. Click **ENTER THE FACILITY** and allow mouse capture.
 
-1. Extract the ZIP.
-2. Open a terminal in this folder.
-3. Run `python -m http.server 8000`.
-4. Visit `http://localhost:8000`.
-5. Click **ENTER THE FACILITY**, then click the game view if the mouse is not captured.
+Three.js is installed as a local dependency. The browser build does not fetch its rendering engine from a CDN.
 
-Do not open `index.html` directly with `file://`; browsers commonly block JavaScript module imports from local files.
+## Run as a Windows desktop app
+
+1. Run `npm install`.
+2. Run `npm start`.
+
+The Electron shell serves the project from a local loopback HTTP server, so ES modules work correctly and the game can run without an internet connection.
+
+## Build Windows executables
+
+Run `npm run dist:win` to create an x64 installer and portable executable in `dist/`. The GitHub Actions workflow performs the same build and uploads both executables as an artifact.
 
 ## Controls
 
-- W / S — forward / backward
+- W / S — move forward / backward
 - A / D — strafe
 - Mouse — look
-- Left mouse — fire pulse tool
+- Left mouse — fire the pulse tool
 - E — interact
 - R — reload energy cells
 - Shift — sprint
-- Esc — pause / release mouse
+- Esc — pause and release the mouse
 
-## Mission
+## Chapter 01 — The Quiet Wing
 
-1. Reach the access terminal in the west lab and press E.
-2. Find the security bulkhead near the central passage and press E.
-3. Enter the eastern lower wing.
-4. Reach the emergency relay and press E.
+1. Reach the access terminal in the west lab.
+2. Restore power and open the security bulkhead.
+3. Cross the facility to the emergency relay.
+4. Activate the relay to complete the chapter.
 5. Avoid or disable hostile units. A suit patch is placed in the southwest room.
 
-## Included
+## Included in this build
 
-- Three.js WebGL renderer with perspective camera, fog, shadow maps, lighting and procedural 3D geometry.
-- First-person movement, mouse look, sprint and basic wall collision.
-- Pulse weapon with raycast hits, ammo and reload.
-- Four simple enemy agents with pursuit and close-range damage.
-- Interactable terminal, animated bulkhead, emergency relay and health pickup.
-- HUD, health, ammo, objective text, minimap, pause and win/lose screens.
+- Three.js WebGL renderer, first-person camera, fog, shadows and procedural industrial geometry.
+- WASD movement, mouse look, sprint and wall/crate collision.
+- Pulse weapon with ammunition, reload and obstruction-aware raycasts.
+- Four basic hostile units with pursuit and close-range damage.
+- Access terminal, animated bulkhead, emergency relay and health pickup.
+- HUD, objective tracking, local map, pause menu and chapter-end screens.
+- Repeatable chapter reset that rebuilds the level cleanly without stacking duplicate geometry or collision blockers.
 
-## Known limitations
+## Current scope
 
-This is an early 3D vertical slice, not a complete campaign. Enemy AI is simple pursuit rather than cover tactics or squad coordination. Geometry and characters are primitive procedural placeholders, not finished art. There is no voice acting, music, save system, checkpoint system, cinematic sequence, multiplayer or mobile touch control. Full browser runtime testing requires loading the external Three.js module in a browser.
+This is a playable Chapter 01 vertical slice, not yet a complete campaign. Enemy movement is simple pursuit. Character and environment art are procedural placeholders; the full campaign, checkpoints, save system, cinematics, voice acting, original music and additional chapters remain future work.

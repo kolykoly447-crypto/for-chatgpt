@@ -17,6 +17,9 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 
 const scene = new THREE.Scene();
+const levelRoot = new THREE.Group();
+levelRoot.name = "AFTERSIGNAL level";
+scene.add(levelRoot);
 scene.background = new THREE.Color(0x111a1b);
 scene.fog = new THREE.FogExp2(0x111a1b,0.027);
 const camera = new THREE.PerspectiveCamera(76,innerWidth/innerHeight,.06,70);
@@ -43,17 +46,17 @@ const keyLight=new THREE.DirectionalLight(0xd9d0b4,2.0);keyLight.position.set(-7
 
 function addBox(x,y,z,sx,sy,sz,material,solid=true){
  const mesh=new THREE.Mesh(new THREE.BoxGeometry(sx,sy,sz),material);
- mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;scene.add(mesh);
+ mesh.position.set(x,y,z);mesh.castShadow=true;mesh.receiveShadow=true;levelRoot.add(mesh);
  if(solid) blockers.push({mesh,minX:x-sx/2,maxX:x+sx/2,minZ:z-sz/2,maxZ:z+sz/2});
  return mesh;
 }
 function addPointLight(x,y,z,color=0x9ac7bb,intensity=13,range=8){
- const light=new THREE.PointLight(color,intensity,range,2);light.position.set(x,y,z);scene.add(light);
- const fixture=new THREE.Mesh(new THREE.BoxGeometry(1.1,.08,.18),new THREE.MeshBasicMaterial({color}));fixture.position.set(x,3.92,z);scene.add(fixture);
+ const light=new THREE.PointLight(color,intensity,range,2);light.position.set(x,y,z);levelRoot.add(light);
+ const fixture=new THREE.Mesh(new THREE.BoxGeometry(1.1,.08,.18),new THREE.MeshBasicMaterial({color}));fixture.position.set(x,3.92,z);levelRoot.add(fixture);
 }
 function addRoomShell(){
- const floor=new THREE.Mesh(new THREE.PlaneGeometry(30,26),materials.floor);floor.rotation.x=-Math.PI/2;floor.position.set(15,0,13);floor.receiveShadow=true;scene.add(floor);
- const ceil=new THREE.Mesh(new THREE.PlaneGeometry(30,26),mat(0x28312f));ceil.rotation.x=Math.PI/2;ceil.position.set(15,4.4,13);scene.add(ceil);
+ const floor=new THREE.Mesh(new THREE.PlaneGeometry(30,26),materials.floor);floor.rotation.x=-Math.PI/2;floor.position.set(15,0,13);floor.receiveShadow=true;levelRoot.add(floor);
+ const ceil=new THREE.Mesh(new THREE.PlaneGeometry(30,26),mat(0x28312f));ceil.rotation.x=Math.PI/2;ceil.position.set(15,4.4,13);levelRoot.add(ceil);
  addBox(15,2.2,0,30,4.4,.5,materials.wall);addBox(15,2.2,26,30,4.4,.5,materials.wall);
  addBox(0,2.2,13,.5,4.4,26,materials.wall);addBox(30,2.2,13,.5,4.4,26,materials.wall);
  // Structural wall sections create connected lab wings and a central passage.
@@ -76,34 +79,34 @@ function addRoomShell(){
 }
 function addConsole(x,z){
  addBox(x,.62,z,1.25,1.24,.72,materials.metal);
- const screen=new THREE.Mesh(new THREE.BoxGeometry(.84,.55,.045),materials.light);screen.position.set(x,.95,z-.39);scene.add(screen);
+ const screen=new THREE.Mesh(new THREE.BoxGeometry(.84,.55,.045),materials.light);screen.position.set(x,.95,z-.39);levelRoot.add(screen);
  addBox(x,1.3,z,.1,.12,.12,materials.amber,false);
 }
 function addCrate(x,y,z){addBox(x,.7,z,1.2,1.4,1.2,materials.dark);addBox(x,1.42,z,.92,.05,.92,materials.trim,false);}
 function makeTerminal(x,z,label,type){
- const group=new THREE.Group();group.position.set(x,0,z);scene.add(group);
+ const group=new THREE.Group();group.position.set(x,0,z);levelRoot.add(group);
  const base=new THREE.Mesh(new THREE.BoxGeometry(.8,1.25,.6),materials.metal);base.position.y=.65;base.castShadow=true;group.add(base);
  const screen=new THREE.Mesh(new THREE.BoxGeometry(.58,.44,.035),materials.light);screen.position.set(0,1.02,-.32);group.add(screen);
  const lamp=new THREE.PointLight(0x77cbb6,1.3,2);lamp.position.set(0,1.3,-.4);group.add(lamp);
  interactables.push({group,x,z,label,type,used:false,range:1.7});
 }
 function makeDoor(){
- const group=new THREE.Group();group.position.set(17.2,0,11.4);scene.add(group);
+ const group=new THREE.Group();group.position.set(17.2,0,11.4);levelRoot.add(group);
  const panel=new THREE.Mesh(new THREE.BoxGeometry(.28,3.8,2.5),materials.metal);panel.position.y=1.9;panel.castShadow=true;group.add(panel);
  for(let z=-1.05;z<=1.05;z+=.7){const stripe=new THREE.Mesh(new THREE.BoxGeometry(.32,3.4,.08),materials.trim);stripe.position.set(.17,1.9,z);group.add(stripe);}
  interactables.push({group,x:17.2,z:11.4,label:"SECURITY BULKHEAD",type:"door",used:false,range:2});
 }
 function makeRelay(){
- const g=new THREE.Group();g.position.set(25.3,0,22.5);scene.add(g);
+ const g=new THREE.Group();g.position.set(25.3,0,22.5);levelRoot.add(g);
  const core=new THREE.Mesh(new THREE.CylinderGeometry(.48,.58,2.3,12),materials.metal);core.position.y=1.2;core.castShadow=true;g.add(core);
  const orb=new THREE.Mesh(new THREE.SphereGeometry(.32,16,12),new THREE.MeshStandardMaterial({color:0x9adacb,emissive:0x367e70,emissiveIntensity:1.5}));orb.position.y=2.6;g.add(orb);
  const ring=new THREE.Mesh(new THREE.TorusGeometry(.72,.055,8,32),materials.amber);ring.position.y=2.2;ring.rotation.x=Math.PI/2;g.add(ring);
  const light=new THREE.PointLight(0x74c9b4,2,5);light.position.y=2.5;g.add(light);
  interactables.push({group:g,x:25.3,z:22.5,label:"EMERGENCY RELAY",type:"relay",used:false,range:2});
 }
-function makeMedkit(){const g=new THREE.Group();g.position.set(4.5,0,19.5);scene.add(g);const box=new THREE.Mesh(new THREE.BoxGeometry(.65,.38,.55),mat(0x657d68));box.position.y=.3;g.add(box);const cross=new THREE.Mesh(new THREE.BoxGeometry(.12,.42,.04),materials.light);cross.position.set(0,.52,-.28);g.add(cross);interactables.push({group:g,x:4.5,z:19.5,label:"SUIT PATCH",type:"med",used:false,range:1.6});}
+function makeMedkit(){const g=new THREE.Group();g.position.set(4.5,0,19.5);levelRoot.add(g);const box=new THREE.Mesh(new THREE.BoxGeometry(.65,.38,.55),mat(0x657d68));box.position.y=.3;g.add(box);const cross=new THREE.Mesh(new THREE.BoxGeometry(.12,.42,.04),materials.light);cross.position.set(0,.52,-.28);g.add(cross);interactables.push({group:g,x:4.5,z:19.5,label:"SUIT PATCH",type:"med",used:false,range:1.6});}
 function createEnemy(x,z,kind="drone"){
- const g=new THREE.Group();g.position.set(x,0,z);scene.add(g);
+ const g=new THREE.Group();g.position.set(x,0,z);levelRoot.add(g);
  const body=new THREE.Mesh(new THREE.CapsuleGeometry(kind==="drone"?.38:.46,.58,4,8),materials.enemy);body.position.y=1.05;body.castShadow=true;g.add(body);
  const head=new THREE.Mesh(new THREE.SphereGeometry(.28,12,10),materials.enemyDark);head.position.y=1.72;head.castShadow=true;g.add(head);
  const eye=new THREE.Mesh(new THREE.BoxGeometry(.35,.09,.08),materials.red);eye.position.set(0,1.76,-.25);g.add(eye);
@@ -132,17 +135,26 @@ function collides(x,z){
  return false;
 }
 function showToast(text,duration=2.4){ui.toast.textContent=text;ui.toast.classList.add("show");world.toastTime=duration;}
-const objectiveLabels=["Reach the access terminal","Restore power at the terminal","Open the security bulkhead","Find the emergency relay","Relay signal restored"];
+const objectiveLabels=["Reach the access terminal","Open the security bulkhead","Reach the emergency relay","Relay signal restored"];
 function setObjective(n){world.objective=n;ui.objective.textContent=objectiveLabels[n]||objectiveLabels[4];}
 function updateHud(){ui.health.textContent=Math.max(0,Math.ceil(world.health));ui.healthBar.style.width=Math.max(0,world.health)+"%";ui.ammo.textContent=world.ammo;}
 function start(){
  resetGame();ui.title.classList.add("hidden");ui.pause.classList.add("hidden");ui.end.classList.add("hidden");ui.hud.classList.remove("hidden");ui.hint.classList.remove("hidden");world.running=true;world.ended=false;$("game").requestPointerLock?.();showToast("QUIET WING // SECURITY ALERT",3);
 }
+function clearLevel(){
+ levelRoot.traverse(object=>{
+  if(object.geometry)object.geometry.dispose();
+ });
+ levelRoot.clear();
+ blockers.length=0;
+ enemies.length=0;
+ interactables.length=0;
+ effects.length=0;
+}
 function resetGame(){
  world.health=100;world.ammo=18;world.reload=0;world.fireCd=0;world.damageCd=0;world.objective=0;world.terminal=false;world.doorOpen=false;world.relay=false;world.score=0;world.ended=false;world.running=false;
  player.position.set(2,1.68,2);camera.position.copy(player.position);camera.rotation.set(0,0,0);camera.rotation.order="YXZ";
- for(const e of enemies)scene.remove(e.group);enemies.length=0;
- for(const o of interactables)scene.remove(o.group);interactables.length=0;
+ clearLevel();
  build();setObjective(0);updateHud();
 }
 function pause(){if(!world.running)return;world.running=false;ui.pause.classList.remove("hidden");ui.hint.classList.add("hidden");document.exitPointerLock?.();}
@@ -162,17 +174,29 @@ function shoot(){
  if(!world.running||world.fireCd>0||world.reload>0)return;if(world.ammo<=0){showToast("ENERGY CELLS DEPLETED — PRESS R",1.5);return;}
  world.ammo--;world.fireCd=.25;updateHud();muzzle.intensity=4;setTimeout(()=>muzzle.intensity=0,65);
  const origin=camera.getWorldPosition(new THREE.Vector3()),dir=camera.getWorldDirection(new THREE.Vector3());raycaster.set(origin,dir);raycaster.far=32;
- const targets=enemies.filter(e=>e.alive).map(e=>e.group);const hits=raycaster.intersectObjects(targets,true);
- if(hits.length){let obj=hits[0].object;let enemy=enemies.find(e=>e.alive&&isChildOf(obj,e.group));if(enemy){enemy.hp-=34;enemy.healthFg.scale.x=Math.max(.001,enemy.hp/enemy.max);if(enemy.hp<=0){enemy.alive=false;scene.remove(enemy.group);world.score+=100;showToast("HOSTILE UNIT DISABLED",1.1);}else showToast("TARGET HIT",.45);}}
+ const targets=enemies.filter(e=>e.alive).map(e=>e.group);
+ const enemyHits=raycaster.intersectObjects(targets,true);
+ const obstacles=blockers.map(b=>b.mesh);
+ if(!world.doorOpen){const door=interactables.find(o=>o.type==="door");if(door)obstacles.push(door.group);}
+ const obstacleHits=raycaster.intersectObjects(obstacles,true);
+ if(enemyHits.length&&(!obstacleHits.length||enemyHits[0].distance<obstacleHits[0].distance)){
+  const obj=enemyHits[0].object;
+  const enemy=enemies.find(e=>e.alive&&isChildOf(obj,e.group));
+  if(enemy){
+   enemy.hp-=34;enemy.healthFg.scale.x=Math.max(.001,enemy.hp/enemy.max);
+   if(enemy.hp<=0){enemy.alive=false;levelRoot.remove(enemy.group);world.score+=100;showToast("HOSTILE UNIT DISABLED",1.1);}
+   else showToast("TARGET HIT",.45);
+  }
+ }
 }
 function isChildOf(obj,parent){let p=obj;while(p){if(p===parent)return true;p=p.parent;}return false;}
 function interact(){
  let nearest=null,best=Infinity;for(const o of interactables){if(o.used)continue;const d=Math.hypot(o.x-player.position.x,o.z-player.position.z);if(d<o.range&&d<best){best=d;nearest=o;}}
  if(!nearest){showToast("NO INTERACTIVE DEVICE IN RANGE",1.2);return;}
  if(nearest.type==="terminal"){world.terminal=true;nearest.used=true;nearest.group.children[1].material=materials.amber;setObjective(1);showToast("ACCESS GRANTED // POWER ROUTING RESTORED",2.5);}
- else if(nearest.type==="door"){if(!world.terminal){showToast("BULKHEAD LOCKED — RESTORE POWER FIRST",1.8);return;}world.doorOpen=true;nearest.used=true;nearest.group.userData.opening=true;setObjective(3);showToast("SECURITY BULKHEAD OPEN",1.8);}
- else if(nearest.type==="relay"){if(!world.doorOpen){showToast("RELAY ACCESS BLOCKED",1.4);return;}world.relay=true;nearest.used=true;setObjective(4);showToast("EMERGENCY RELAY ONLINE",1.5);setTimeout(()=>finish(true),900);}
- else if(nearest.type==="med"){nearest.used=true;scene.remove(nearest.group);world.health=Math.min(100,world.health+35);updateHud();showToast("SUIT PATCH APPLIED +35",1.5);}
+ else if(nearest.type==="door"){if(!world.terminal){showToast("BULKHEAD LOCKED — RESTORE POWER FIRST",1.8);return;}world.doorOpen=true;nearest.used=true;nearest.group.userData.opening=true;setObjective(2);showToast("SECURITY BULKHEAD OPEN",1.8);}
+ else if(nearest.type==="relay"){if(!world.doorOpen){showToast("RELAY ACCESS BLOCKED",1.4);return;}world.relay=true;nearest.used=true;setObjective(3);showToast("EMERGENCY RELAY ONLINE",1.5);setTimeout(()=>finish(true),900);}
+ else if(nearest.type==="med"){nearest.used=true;levelRoot.remove(nearest.group);world.health=Math.min(100,world.health+35);updateHud();showToast("SUIT PATCH APPLIED +35",1.5);}
 }
 function hurt(amount){world.health-=amount;ui.damage.style.opacity=".8";setTimeout(()=>ui.damage.style.opacity="0",110);updateHud();if(world.health<=0)finish(false);}
 function updatePlayer(dt){
