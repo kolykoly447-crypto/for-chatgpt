@@ -66,4 +66,4 @@ The unlocked chapter and current checkpoint are saved in browser local storage. 
 
 ## Current scope
 
-This is a playable Chapter 01 vertical slice, not yet a complete campaign. Enemy movement is simple pursuit. Character and environment art are procedural placeholders; the full campaign, checkpoints, save system, cinematics, voice acting, original music and additional chapters remain future work.
+This is an early two-chapter campaign build, not yet the complete campaign. Enemy movement is simple pursuit. Character and environment art are procedural placeholders; additional chapters, advanced enemy tactics, cinematics, voice acting and original music remain future work.
