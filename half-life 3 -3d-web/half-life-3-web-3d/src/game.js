@@ -5,7 +5,9 @@ const ui = {
   title:$("title"), pause:$("pause"), end:$("end"), hud:$("hud"), hint:$("hint"),
   objective:$("objective-text"), health:$("health"), healthBar:$("health-bar"),
   ammo:$("ammo"), toast:$("toast"), interact:$("interact"), damage:$("damage-flash"),
-  map:$("map"), endHeading:$("end-heading"), endCopy:$("end-copy")
+  map:$("map"), endHeading:$("end-heading"), endCopy:$("end-copy"),
+  nextChapter:$("next-chapter"), sectorName:$("sector-name"), sectorNumber:$("sector-number"),
+  chapterMeta:$("chapter-meta"), titleCopy:$("title-copy")
 };
 const renderer = new THREE.WebGLRenderer({canvas:$("game"),antialias:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.8));
@@ -182,6 +184,7 @@ function buildChapterTwo(){
 }
 function build(){if(world.chapter===2)buildChapterTwo();else buildChapterOne();}
 build();
+syncChapterDisplay();
 
 const weapon=new THREE.Group();camera.add(weapon);scene.add(camera);
 const gunBody=new THREE.Mesh(new THREE.BoxGeometry(.22,.22,.72),mat(0x303a38,.45,.55));gunBody.position.set(.34,-.31,-.62);weapon.add(gunBody);
@@ -192,38 +195,95 @@ const muzzle=new THREE.PointLight(0xffc56f,0,3);muzzle.position.set(.34,-.28,-1.
 function collides(x,z){
  const r=player.radius;
  for(const b of blockers){if(x+r>b.minX&&x-r<b.maxX&&z+r>b.minZ&&z-r<b.maxZ)return true;}
- if(!world.doorOpen){const dx=x-17.2,dz=z-11.4;if(Math.abs(dx)<.38&&Math.abs(dz)<1.35)return true;}
+ for(const door of interactables){
+  if(door.type!=="door"||door.opened)continue;
+  if(Math.abs(x-door.x)<door.halfX+player.radius&&Math.abs(z-door.z)<door.halfZ+player.radius)return true;
+ }
  return false;
 }
 function showToast(text,duration=2.4){ui.toast.textContent=text;ui.toast.classList.add("show");world.toastTime=duration;}
-const objectiveLabels=["Reach the access terminal","Open the security bulkhead","Reach the emergency relay","Relay signal restored"];
-function setObjective(n){world.objective=n;ui.objective.textContent=objectiveLabels[n]||objectiveLabels[4];}
+const objectives={
+ 1:["Reach the access terminal","Open the security bulkhead","Reach the emergency relay","Relay signal restored"],
+ 2:["Reach the lower access terminal","Open the pump hall bulkhead","Restore coolant pressure","Reach the freight elevator"]
+};
+function setObjective(n){
+ world.objective=n;
+ const labels=objectives[world.chapter]||objectives[1];
+ ui.objective.textContent=labels[n]||labels[labels.length-1];
+}
+function syncChapterDisplay(){
+ const lower=world.chapter===2;
+ ui.sectorName.textContent=lower?"LOWER COMPLEX":"QUIET WING";
+ ui.sectorNumber.textContent=lower?"02":"01";
+ ui.chapterMeta.textContent=lower?"CHAPTER 02 · THE LOWER COMPLEX":"CHAPTER 01 · THE QUIET WING";
+ ui.titleCopy.textContent=lower
+  ?"Beneath the quiet wing, the coolant pumps are running without a crew. Restore pressure and reach the freight lift."
+  :"A research station has gone silent. The emergency relay is still transmitting from somewhere below the facility.";
+ $("start").textContent=lower?"DESCEND TO LOWER COMPLEX":"ENTER THE FACILITY";
+}
 function updateHud(){ui.health.textContent=Math.max(0,Math.ceil(world.health));ui.healthBar.style.width=Math.max(0,world.health)+"%";ui.ammo.textContent=world.ammo;}
 function start(){
- resetGame();ui.title.classList.add("hidden");ui.pause.classList.add("hidden");ui.end.classList.add("hidden");ui.hud.classList.remove("hidden");ui.hint.classList.remove("hidden");world.running=true;world.ended=false;$("game").requestPointerLock?.();showToast("QUIET WING // SECURITY ALERT",3);
+ resetGame();campaign.currentChapter=world.chapter;saveCampaign();syncChapterDisplay();
+ ui.title.classList.add("hidden");ui.pause.classList.add("hidden");ui.end.classList.add("hidden");
+ ui.hud.classList.remove("hidden");ui.hint.classList.remove("hidden");
+ world.running=true;world.ended=false;$("game").requestPointerLock?.();
+ showToast(world.chapter===2&&campaign.checkpoint==="lower-coolant"?"CHECKPOINT RESTORED // PUMP HALL":"QUIET WING // SECURITY ALERT",3);
+}
+function startChapter(chapter){
+ world.chapter=Math.max(1,Math.min(campaign.unlockedChapter,chapter));
+ if(world.chapter===1)campaign.checkpoint=null;
+ campaign.currentChapter=world.chapter;saveCampaign();start();
 }
 function clearLevel(){
- levelRoot.traverse(object=>{
-  if(object.geometry)object.geometry.dispose();
- });
- levelRoot.clear();
- blockers.length=0;
- enemies.length=0;
- interactables.length=0;
- effects.length=0;
+ levelRoot.traverse(object=>{if(object.geometry)object.geometry.dispose();});
+ levelRoot.clear();blockers.length=0;enemies.length=0;interactables.length=0;effects.length=0;
 }
 function resetGame(){
- world.health=100;world.ammo=18;world.reload=0;world.fireCd=0;world.damageCd=0;world.objective=0;world.terminal=false;world.doorOpen=false;world.relay=false;world.score=0;world.ended=false;world.running=false;
- player.position.set(2,1.68,2);camera.position.copy(player.position);camera.rotation.set(0,0,0);camera.rotation.order="YXZ";
- clearLevel();
- build();setObjective(0);updateHud();
+ world.health=100;world.ammo=18;world.reload=0;world.fireCd=0;world.damageCd=0;world.objective=0;
+ world.terminal=false;world.doorOpen=false;world.relay=false;world.coolantRestored=false;
+ world.score=0;world.ended=false;world.running=false;
+ clearLevel();build();
+ if(world.chapter===2&&campaign.checkpoint==="lower-coolant"){
+  world.terminal=true;world.doorOpen=true;world.coolantRestored=true;
+  const terminal=interactables.find(o=>o.type==="terminal");
+  if(terminal){terminal.used=true;if(terminal.group.children[1])terminal.group.children[1].material=materials.amber;}
+  const door=interactables.find(o=>o.type==="door");
+  if(door){door.used=true;door.opened=true;door.group.position.y=4.2;door.group.visible=false;}
+  const valve=interactables.find(o=>o.type==="coolant");
+  if(valve)valve.used=true;
+  player.position.set(18.2,1.68,14.7);setObjective(3);
+ }else{
+  player.position.set(2,1.68,2);setObjective(0);
+ }
+ camera.position.copy(player.position);camera.rotation.set(0,0,0);camera.rotation.order="YXZ";
+ updateHud();
+}
+function saveCheckpoint(name){
+ campaign.currentChapter=world.chapter;campaign.checkpoint=name;saveCampaign();
+ showToast("CHECKPOINT STORED // "+name.toUpperCase(),2);
 }
 function pause(){if(!world.running)return;world.running=false;ui.pause.classList.remove("hidden");ui.hint.classList.add("hidden");document.exitPointerLock?.();}
 function resume(){ui.pause.classList.add("hidden");world.running=true;ui.hint.classList.remove("hidden");$("game").requestPointerLock?.();}
 function finish(win){
- world.running=false;world.ended=true;ui.endHeading.textContent=win?"SIGNAL FOUND":"SUIT FAILURE";ui.endCopy.textContent=win?"The emergency relay is online. A response answers from far below the station. Chapter complete.":"The facility remains silent. Use cover, keep moving and conserve your energy cells.";ui.end.classList.remove("hidden");ui.hint.classList.add("hidden");document.exitPointerLock?.();
+ world.running=false;world.ended=true;ui.nextChapter.classList.add("hidden");
+ $("again").textContent=world.chapter===2?"REPLAY CHAPTER 02":"REPLAY CHAPTER 01";
+ if(win&&world.chapter===1){
+  campaign.unlockedChapter=Math.max(campaign.unlockedChapter,2);campaign.currentChapter=2;saveCampaign();
+  ui.endHeading.textContent="SIGNAL FOUND";
+  ui.endCopy.textContent="The emergency relay answers. Deep below the station, a freight lift powers on — and something moves in the pump hall.";
+  ui.nextChapter.classList.remove("hidden");
+ }else if(win){
+  campaign.currentChapter=2;campaign.checkpoint=null;saveCampaign();
+  ui.endHeading.textContent="LOWER COMPLEX SECURED";
+  ui.endCopy.textContent="Coolant pressure is stable. The freight lift descends into an uncharted section of the facility. The signal continues.";
+ }else{
+  ui.endHeading.textContent="SUIT FAILURE";
+  ui.endCopy.textContent="The facility remains hostile. Your last checkpoint is available; regroup and try again.";
+ }
+ ui.end.classList.remove("hidden");ui.hint.classList.add("hidden");document.exitPointerLock?.();
 }
 $("start").addEventListener("click",start);$("resume").addEventListener("click",resume);$("restart").addEventListener("click",start);$("again").addEventListener("click",start);
+ui.nextChapter.addEventListener("click",()=>startChapter(2));
 document.addEventListener("pointerlockchange",()=>{world.locked=document.pointerLockElement===$("game");});
 document.addEventListener("mousemove",e=>{if(world.running&&world.locked){camera.rotation.y-=e.movementX*.0022;camera.rotation.x-=e.movementY*.0018;camera.rotation.x=THREE.MathUtils.clamp(camera.rotation.x,-1.45,1.45);}});
 document.addEventListener("keydown",e=>{keys.add(e.code);if(["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code))e.preventDefault();if(e.code==="Escape"&&world.running)pause();if(e.code==="KeyE"&&world.running)interact();if(e.code==="KeyR"&&world.running)reload();});
@@ -238,7 +298,7 @@ function shoot(){
  const targets=enemies.filter(e=>e.alive).map(e=>e.group);
  const enemyHits=raycaster.intersectObjects(targets,true);
  const obstacles=blockers.map(b=>b.mesh);
- if(!world.doorOpen){const door=interactables.find(o=>o.type==="door");if(door)obstacles.push(door.group);}
+ for(const door of interactables)if(door.type==="door"&&!door.opened)obstacles.push(door.group);
  const obstacleHits=raycaster.intersectObjects(obstacles,true);
  if(enemyHits.length&&(!obstacleHits.length||enemyHits[0].distance<obstacleHits[0].distance)){
   const obj=enemyHits[0].object;
@@ -252,12 +312,38 @@ function shoot(){
 }
 function isChildOf(obj,parent){let p=obj;while(p){if(p===parent)return true;p=p.parent;}return false;}
 function interact(){
- let nearest=null,best=Infinity;for(const o of interactables){if(o.used)continue;const d=Math.hypot(o.x-player.position.x,o.z-player.position.z);if(d<o.range&&d<best){best=d;nearest=o;}}
+ let nearest=null,best=Infinity;
+ for(const o of interactables){
+  if(o.used)continue;
+  const d=Math.hypot(o.x-player.position.x,o.z-player.position.z);
+  if(d<o.range&&d<best){best=d;nearest=o;}
+ }
  if(!nearest){showToast("NO INTERACTIVE DEVICE IN RANGE",1.2);return;}
- if(nearest.type==="terminal"){world.terminal=true;nearest.used=true;nearest.group.children[1].material=materials.amber;setObjective(1);showToast("ACCESS GRANTED // POWER ROUTING RESTORED",2.5);}
- else if(nearest.type==="door"){if(!world.terminal){showToast("BULKHEAD LOCKED — RESTORE POWER FIRST",1.8);return;}world.doorOpen=true;nearest.used=true;nearest.group.userData.opening=true;setObjective(2);showToast("SECURITY BULKHEAD OPEN",1.8);}
- else if(nearest.type==="relay"){if(!world.doorOpen){showToast("RELAY ACCESS BLOCKED",1.4);return;}world.relay=true;nearest.used=true;setObjective(3);showToast("EMERGENCY RELAY ONLINE",1.5);setTimeout(()=>finish(true),900);}
- else if(nearest.type==="med"){nearest.used=true;levelRoot.remove(nearest.group);world.health=Math.min(100,world.health+35);updateHud();showToast("SUIT PATCH APPLIED +35",1.5);}
+ if(nearest.type==="terminal"){
+  world.terminal=true;nearest.used=true;
+  if(nearest.group.children[1])nearest.group.children[1].material=materials.amber;
+  setObjective(1);
+  showToast(world.chapter===2?"LOWER ACCESS ONLINE // PUMP HALL POWER RESTORED":"ACCESS GRANTED // POWER ROUTING RESTORED",2.5);
+ }else if(nearest.type==="door"){
+  if(!world.terminal){showToast("BULKHEAD LOCKED — RESTORE POWER FIRST",1.8);return;}
+  world.doorOpen=true;nearest.used=true;nearest.opened=true;nearest.group.userData.opening=true;
+  setObjective(2);showToast("PRESSURE BULKHEAD OPEN",1.8);
+ }else if(nearest.type==="relay"){
+  if(!world.doorOpen){showToast("RELAY ACCESS BLOCKED",1.4);return;}
+  world.relay=true;nearest.used=true;setObjective(3);
+  showToast("EMERGENCY RELAY ONLINE",1.5);setTimeout(()=>finish(true),900);
+ }else if(nearest.type==="coolant"){
+  if(!world.doorOpen){showToast("PUMP HALL IS STILL SEALED",1.4);return;}
+  world.coolantRestored=true;nearest.used=true;nearest.group.rotation.y=.8;
+  setObjective(3);saveCheckpoint("lower-coolant");
+  showToast("COOLANT PRESSURE RESTORED // FREIGHT LIFT POWERED",2.2);
+ }else if(nearest.type==="lift"){
+  if(!world.coolantRestored){showToast("LIFT LOCKED — RESTORE COOLANT PRESSURE FIRST",1.8);return;}
+  nearest.used=true;showToast("FREIGHT LIFT ENGAGED",1.2);setTimeout(()=>finish(true),900);
+ }else if(nearest.type==="med"){
+  nearest.used=true;levelRoot.remove(nearest.group);
+  world.health=Math.min(100,world.health+35);updateHud();showToast("SUIT PATCH APPLIED +35",1.5);
+ }
 }
 function hurt(amount){world.health-=amount;ui.damage.style.opacity=".8";setTimeout(()=>ui.damage.style.opacity="0",110);updateHud();if(world.health<=0)finish(false);}
 function updatePlayer(dt){
@@ -285,7 +371,9 @@ function drawMap(){
  const c=ui.map.getContext("2d"),w=160,h=160;c.clearRect(0,0,w,h);c.fillStyle="#172522";c.fillRect(0,0,w,h);
  const sx=w/30,sz=h/26;c.fillStyle="#65736a";
  for(const b of blockers)c.fillRect(b.minX*sx,b.minZ*sz,(b.maxX-b.minX)*sx,(b.maxZ-b.minZ)*sz);
- if(!world.doorOpen){c.fillStyle="#b58a50";c.fillRect(17.2*sx-2,11.4*sz-7,4,14);}
+ for(const door of interactables)if(door.type==="door"&&!door.opened){
+  c.fillStyle="#b58a50";c.fillRect(door.x*sx-2,door.z*sz-7,4,14);
+ }
  for(const e of enemies)if(e.alive){c.fillStyle="#d77a58";c.fillRect(e.x*sx-2,e.z*sz-2,4,4);}
  for(const o of interactables)if(!o.used){c.fillStyle="#d5ad68";c.fillRect(o.x*sx-2,o.z*sz-2,4,4);}
  c.save();c.translate(player.position.x*sx,player.position.z*sz);c.rotate(-camera.rotation.y);c.fillStyle="#e5eee4";c.beginPath();c.moveTo(0,-6);c.lineTo(-4,4);c.lineTo(4,4);c.fill();c.restore();
