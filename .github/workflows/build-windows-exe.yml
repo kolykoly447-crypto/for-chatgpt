@@ -26,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Validate game JavaScript syntax
-        run: node --input-type=module --check < src/game.js
+        run: node --check src/game.js
       - name: Build AFTERSIGNAL installer and portable EXE
         run: npm run dist:win
       - name: Upload Windows executables
