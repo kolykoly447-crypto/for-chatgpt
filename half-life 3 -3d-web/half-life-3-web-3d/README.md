@@ -17,7 +17,7 @@ Three.js is installed as a local dependency. The browser build does not fetch it
 1. Run `npm install`.
 2. Run `npm start`.
 
-The Electron shell serves the project from a local loopback HTTP server, so ES modules work correctly and the game can run without an internet connection.
+The Electron shell serves the project from a stable local loopback address, so ES modules work correctly, campaign saves remain available between launches, and the game can run without an internet connection.
 
 ## Build Windows executables
 
