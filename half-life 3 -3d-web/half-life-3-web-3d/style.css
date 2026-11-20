@@ -10,7 +10,7 @@ button{font:700 15px var(--display-font);letter-spacing:.17em;padding:14px 23px;
 button.primary{background:var(--amber);border:1px solid #f0c17a;color:#161716;min-width:220px}button.primary:hover{background:#ffd18a;transform:translateY(-2px)}
 button.secondary{display:block;margin-top:10px;background:transparent;border:1px solid #63716c;color:#d4ddd5}button.secondary:hover{border-color:var(--amber);color:var(--amber)}
 .meta{margin-top:26px;color:#84918a;font-size:11px;letter-spacing:.22em}.note{margin-top:14px;color:#718079;font-size:11px;letter-spacing:.08em}
-.menu-panel{width:min(460px,90vw);padding:38px 42px}.menu-panel h2{font:700 56px var(--display-font);margin:10px 0 24px}
+.menu-panel{width:min(460px,90vw);padding:38px 42px}.menu-panel #next-chapter{display:block;margin-top:10px}.menu-panel h2{font:700 56px var(--display-font);margin:10px 0 24px}
 #hud{position:absolute;inset:0;z-index:3;pointer-events:none}.topbar{position:absolute;top:24px;left:26px;right:26px;display:flex;justify-content:space-between;align-items:flex-start}
 .panel-small{background:var(--panel);border:1px solid var(--line);padding:10px 14px;backdrop-filter:blur(4px)}.objective{min-width:245px;border-left:2px solid var(--amber)}.label{font:600 10px var(--display-font);letter-spacing:.2em;color:#91a29a}.objective>div:last-child{font-size:17px;margin-top:3px}
 .sector{font-size:12px;letter-spacing:.15em;color:#b8c4bc}.sector b{color:var(--amber);margin-left:12px}.sector i{display:inline-block;width:7px;height:7px;background:#83c49b;border-radius:50%;margin-right:8px;box-shadow:0 0 9px #83c49b}

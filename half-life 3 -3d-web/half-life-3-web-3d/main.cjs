@@ -68,7 +68,7 @@ function startLocalServer() {
     });
 
     localServer.once("error", reject);
-    localServer.listen(0, "127.0.0.1", () => resolve(localServer.address().port));
+    localServer.listen(48123, "127.0.0.1", () => resolve(48123));
   });
 }
 

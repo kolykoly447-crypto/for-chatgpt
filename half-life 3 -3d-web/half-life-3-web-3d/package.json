@@ -18,7 +18,9 @@
   "build": {
     "appId": "com.fanproject.aftersignal",
     "productName": "AFTERSIGNAL",
-    "directories": {"output": "dist"},
+    "directories": {
+      "output": "dist"
+    },
     "files": [
       "index.html",
       "style.css",
@@ -29,8 +31,18 @@
     ],
     "win": {
       "target": [
-        {"target": "nsis", "arch": ["x64"]},
-        {"target": "portable", "arch": ["x64"]}
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     },
     "nsis": {
@@ -39,5 +51,6 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     }
-  }
+  },
+  "type": "module"
 }

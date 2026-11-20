@@ -25,6 +25,8 @@ jobs:
           node-version: 20
       - name: Install dependencies
         run: npm install --no-audit --no-fund
+      - name: Validate game JavaScript syntax
+        run: node --check src/game.js
       - name: Build AFTERSIGNAL installer and portable EXE
         run: npm run dist:win
       - name: Upload Windows executables

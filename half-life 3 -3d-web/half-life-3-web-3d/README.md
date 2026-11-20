@@ -17,7 +17,7 @@ Three.js is installed as a local dependency. The browser build does not fetch it
 1. Run `npm install`.
 2. Run `npm start`.
 
-The Electron shell serves the project from a local loopback HTTP server, so ES modules work correctly and the game can run without an internet connection.
+The Electron shell serves the project from a stable local loopback address, so ES modules work correctly, campaign saves remain available between launches, and the game can run without an internet connection.
 
 ## Build Windows executables
 
@@ -34,24 +34,36 @@ Run `npm run dist:win` to create an x64 installer and portable executable in `di
 - Shift — sprint
 - Esc — pause and release the mouse
 
-## Chapter 01 — The Quiet Wing
+## Campaign chapters
 
+### Chapter 01 — The Quiet Wing
 1. Reach the access terminal in the west lab.
 2. Restore power and open the security bulkhead.
-3. Cross the facility to the emergency relay.
-4. Activate the relay to complete the chapter.
-5. Avoid or disable hostile units. A suit patch is placed in the southwest room.
+3. Reach the emergency relay and activate it to complete the chapter.
+4. Avoid or disable hostile units. A suit patch is placed in the southwest room.
+
+Completing Chapter 01 unlocks Chapter 02 and reveals a **NEXT CHAPTER** button.
+
+### Chapter 02 — The Lower Complex
+1. Reach the lower access terminal and restore pump-hall power.
+2. Open the reinforced pressure bulkhead.
+3. Defeat or avoid hostile units, including a heavy Warden.
+4. Restore coolant pressure at the valve assembly. This stores a persistent checkpoint.
+5. Reach the freight elevator to complete the chapter.
+
+The unlocked chapter and current checkpoint are saved in browser local storage. Restarting Chapter 02 after activating the coolant valve restores the player beyond the bulkhead with the coolant system already stabilized.
 
 ## Included in this build
 
+- Two campaign chapters with separate layouts, objectives and chapter progression.
 - Three.js WebGL renderer, first-person camera, fog, shadows and procedural industrial geometry.
 - WASD movement, mouse look, sprint and wall/crate collision.
 - Pulse weapon with ammunition, reload and obstruction-aware raycasts.
-- Four basic hostile units with pursuit and close-range damage.
-- Access terminal, animated bulkhead, emergency relay and health pickup.
-- HUD, objective tracking, local map, pause menu and chapter-end screens.
-- Repeatable chapter reset that rebuilds the level cleanly without stacking duplicate geometry or collision blockers.
+- Basic pursuit enemies plus a heavy Warden enemy in Chapter 02.
+- Interactable terminals, pressure bulkheads, relay, coolant valve and freight lift.
+- HUD, chapter-specific objectives, local map, pause menu and chapter-end screens.
+- Saved campaign unlocks and a persistent Chapter 02 checkpoint.
 
 ## Current scope
 
-This is a playable Chapter 01 vertical slice, not yet a complete campaign. Enemy movement is simple pursuit. Character and environment art are procedural placeholders; the full campaign, checkpoints, save system, cinematics, voice acting, original music and additional chapters remain future work.
+This is an early two-chapter campaign build, not yet the complete campaign. Enemy movement is simple pursuit. Character and environment art are procedural placeholders; additional chapters, advanced enemy tactics, cinematics, voice acting and original music remain future work.

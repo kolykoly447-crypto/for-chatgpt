@@ -5,7 +5,9 @@ const ui = {
   title:$("title"), pause:$("pause"), end:$("end"), hud:$("hud"), hint:$("hint"),
   objective:$("objective-text"), health:$("health"), healthBar:$("health-bar"),
   ammo:$("ammo"), toast:$("toast"), interact:$("interact"), damage:$("damage-flash"),
-  map:$("map"), endHeading:$("end-heading"), endCopy:$("end-copy")
+  map:$("map"), endHeading:$("end-heading"), endCopy:$("end-copy"),
+  nextChapter:$("next-chapter"), sectorName:$("sector-name"), sectorNumber:$("sector-number"),
+  chapterMeta:$("chapter-meta"), titleCopy:$("title-copy")
 };
 const renderer = new THREE.WebGLRenderer({canvas:$("game"),antialias:true});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.8));
@@ -27,7 +29,20 @@ camera.position.set(2,1.68,2);
 const clock = new THREE.Clock();
 const raycaster = new THREE.Raycaster();
 const keys = new Set();
-const world = {running:false,ended:false,locked:false,health:100,ammo:18,maxAmmo:18,reload:0,fireCd:0,damageCd:0,toastTime:0,objective:0,terminal:false,doorOpen:false,relay:false,score:0};
+const SAVE_KEY = "aftersignal.campaign.v1";
+function loadCampaign(){
+ try{
+  const saved=JSON.parse(localStorage.getItem(SAVE_KEY)||"{}");
+  return {
+   unlockedChapter:Math.max(1,Math.min(2,Number(saved.unlockedChapter)||1)),
+   currentChapter:Math.max(1,Math.min(2,Number(saved.currentChapter)||1)),
+   checkpoint:typeof saved.checkpoint==="string"?saved.checkpoint:null
+  };
+ }catch{return {unlockedChapter:1,currentChapter:1,checkpoint:null};}
+}
+const campaign=loadCampaign();
+function saveCampaign(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(campaign));}catch{}}
+const world = {chapter:campaign.currentChapter,running:false,ended:false,locked:false,health:100,ammo:18,maxAmmo:18,reload:0,fireCd:0,damageCd:0,toastTime:0,objective:0,terminal:false,doorOpen:false,relay:false,coolantRestored:false,score:0};
 const player = {position:new THREE.Vector3(2,1.68,2),radius:.34,speed:4.2};
 const blockers = [];
 const enemies = [];
@@ -39,7 +54,7 @@ const materials = {
   wall:mat(0x65716a),dark:mat(0x343e3a),floor:mat(0x3b423c),trim:mat(0x8a795e,.65,.25),
   metal:mat(0x56615c,.42,.6),panel:mat(0x263a38,.5,.35),amber:mat(0xc28d48,.5,.3),
   light: new THREE.MeshStandardMaterial({color:0x8ec7b8,emissive:0x32685d,emissiveIntensity:1.2}),
-  enemy:mat(0x4e625d,.62,.2),enemyDark:mat(0x263331,.72,.15),red:new THREE.MeshStandardMaterial({color:0xb95f42,emissive:0x6b2115,emissiveIntensity:1.4})
+  enemy:mat(0x4e625d,.62,.2),warden:mat(0x35423f,.48,.34),enemyDark:mat(0x263331,.72,.15),red:new THREE.MeshStandardMaterial({color:0xb95f42,emissive:0x6b2115,emissiveIntensity:1.4})
 };
 scene.add(new THREE.HemisphereLight(0x9aafa9,0x20251f,1.05));
 const keyLight=new THREE.DirectionalLight(0xd9d0b4,2.0);keyLight.position.set(-7,13,8);keyLight.castShadow=true;keyLight.shadow.mapSize.set(2048,2048);keyLight.shadow.camera.left=-25;keyLight.shadow.camera.right=25;keyLight.shadow.camera.top=25;keyLight.shadow.camera.bottom=-25;scene.add(keyLight);
@@ -90,11 +105,11 @@ function makeTerminal(x,z,label,type){
  const lamp=new THREE.PointLight(0x77cbb6,1.3,2);lamp.position.set(0,1.3,-.4);group.add(lamp);
  interactables.push({group,x,z,label,type,used:false,range:1.7});
 }
-function makeDoor(){
- const group=new THREE.Group();group.position.set(17.2,0,11.4);levelRoot.add(group);
+function makeDoor(x=17.2,z=11.4,label="SECURITY BULKHEAD"){
+ const group=new THREE.Group();group.position.set(x,0,z);levelRoot.add(group);
  const panel=new THREE.Mesh(new THREE.BoxGeometry(.28,3.8,2.5),materials.metal);panel.position.y=1.9;panel.castShadow=true;group.add(panel);
- for(let z=-1.05;z<=1.05;z+=.7){const stripe=new THREE.Mesh(new THREE.BoxGeometry(.32,3.4,.08),materials.trim);stripe.position.set(.17,1.9,z);group.add(stripe);}
- interactables.push({group,x:17.2,z:11.4,label:"SECURITY BULKHEAD",type:"door",used:false,range:2});
+ for(let offset=-1.05;offset<=1.05;offset+=.7){const stripe=new THREE.Mesh(new THREE.BoxGeometry(.32,3.4,.08),materials.trim);stripe.position.set(.17,1.9,offset);group.add(stripe);}
+ interactables.push({group,x,z,label,type:"door",used:false,opened:false,halfX:.38,halfZ:1.35,range:2});
 }
 function makeRelay(){
  const g=new THREE.Group();g.position.set(25.3,0,22.5);levelRoot.add(g);
@@ -105,22 +120,71 @@ function makeRelay(){
  interactables.push({group:g,x:25.3,z:22.5,label:"EMERGENCY RELAY",type:"relay",used:false,range:2});
 }
 function makeMedkit(){const g=new THREE.Group();g.position.set(4.5,0,19.5);levelRoot.add(g);const box=new THREE.Mesh(new THREE.BoxGeometry(.65,.38,.55),mat(0x657d68));box.position.y=.3;g.add(box);const cross=new THREE.Mesh(new THREE.BoxGeometry(.12,.42,.04),materials.light);cross.position.set(0,.52,-.28);g.add(cross);interactables.push({group:g,x:4.5,z:19.5,label:"SUIT PATCH",type:"med",used:false,range:1.6});}
+function makeCoolantValve(x,z){
+ const group=new THREE.Group();group.position.set(x,0,z);levelRoot.add(group);
+ const column=new THREE.Mesh(new THREE.CylinderGeometry(.32,.42,1.5,10),materials.metal);column.position.y=.75;column.castShadow=true;group.add(column);
+ const wheel=new THREE.Mesh(new THREE.TorusGeometry(.48,.075,8,20),materials.amber);wheel.position.set(0,1.35,-.32);group.add(wheel);
+ const hub=new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,.24,12),materials.dark);hub.rotation.x=Math.PI/2;hub.position.set(0,1.35,-.32);group.add(hub);
+ const lamp=new THREE.PointLight(0x74c9b4,1.6,3);lamp.position.set(0,1.8,-.3);group.add(lamp);
+ interactables.push({group,x,z,label:"COOLANT PRESSURE VALVE",type:"coolant",used:false,range:2});
+}
+function makeFreightLift(x,z){
+ const group=new THREE.Group();group.position.set(x,0,z);levelRoot.add(group);
+ const plinth=new THREE.Mesh(new THREE.BoxGeometry(2.8,.22,2.8),materials.dark);plinth.position.y=.11;plinth.receiveShadow=true;group.add(plinth);
+ for(const [px,pz] of [[-1.15,-1.15],[1.15,-1.15],[-1.15,1.15],[1.15,1.15]]){
+  const post=new THREE.Mesh(new THREE.BoxGeometry(.16,3.8,.16),materials.metal);post.position.set(px,1.9,pz);post.castShadow=true;group.add(post);
+ }
+ const lintel=new THREE.Mesh(new THREE.BoxGeometry(2.5,.18,.18),materials.trim);lintel.position.y=3.75;group.add(lintel);
+ const control=new THREE.Mesh(new THREE.BoxGeometry(.55,.9,.28),materials.metal);control.position.set(1.55,.65,0);group.add(control);
+ const indicator=new THREE.Mesh(new THREE.BoxGeometry(.25,.22,.04),materials.light);indicator.position.set(1.55,1.02,-.16);group.add(indicator);
+ const lamp=new THREE.PointLight(0x78c9bd,2.1,7);lamp.position.y=3.1;group.add(lamp);
+ interactables.push({group,x,z,label:"FREIGHT ELEVATOR",type:"lift",used:false,range:2.5});
+}
 function createEnemy(x,z,kind="drone"){
  const g=new THREE.Group();g.position.set(x,0,z);levelRoot.add(g);
- const body=new THREE.Mesh(new THREE.CapsuleGeometry(kind==="drone"?.38:.46,.58,4,8),materials.enemy);body.position.y=1.05;body.castShadow=true;g.add(body);
- const head=new THREE.Mesh(new THREE.SphereGeometry(.28,12,10),materials.enemyDark);head.position.y=1.72;head.castShadow=true;g.add(head);
+ const heavy=kind==="warden";
+ const body=new THREE.Mesh(new THREE.CapsuleGeometry(heavy?.58:kind==="drone"?.38:.46,heavy?.78:.58,4,8),heavy?materials.warden:materials.enemy);body.position.y=1.12;body.castShadow=true;g.add(body);
+ if(heavy){for(const side of [-1,1]){const shoulder=new THREE.Mesh(new THREE.BoxGeometry(.34,.34,.42),materials.enemyDark);shoulder.position.set(side*.48,1.55,.02);shoulder.castShadow=true;g.add(shoulder);}}
+ const head=new THREE.Mesh(new THREE.SphereGeometry(heavy?.31:.28,12,10),materials.enemyDark);head.position.y=heavy?1.94:1.72;head.castShadow=true;g.add(head);
  const eye=new THREE.Mesh(new THREE.BoxGeometry(.35,.09,.08),materials.red);eye.position.set(0,1.76,-.25);g.add(eye);
  const pack=new THREE.Mesh(new THREE.BoxGeometry(.62,.65,.28),materials.enemyDark);pack.position.set(0,1.05,.36);g.add(pack);
  const gun=new THREE.Mesh(new THREE.BoxGeometry(.14,.16,.72),materials.dark);gun.position.set(.32,.9,-.32);g.add(gun);
  const healthBg=new THREE.Mesh(new THREE.BoxGeometry(.8,.07,.04),new THREE.MeshBasicMaterial({color:0x1b2422}));healthBg.position.y=2.25;g.add(healthBg);
  const healthFg=new THREE.Mesh(new THREE.BoxGeometry(.78,.045,.045),new THREE.MeshBasicMaterial({color:0xc77a51}));healthFg.position.set(0,2.25,-.025);g.add(healthFg);
- enemies.push({group:g,x,z,hp:kind==="drone"?55:75,max:kind==="drone"?55:75,speed:kind==="drone"?1.25:.95,attack:0,alive:true,kind,healthFg,phase:Math.random()*6});
+ const max=heavy?132:kind==="drone"?55:75;
+ enemies.push({group:g,x,z,hp:max,max,speed:heavy?.78:kind==="drone"?1.25:.95,attack:0,alive:true,kind,healthFg,phase:Math.random()*6});
 }
-function build(){
+function buildChapterOne(){
  addRoomShell();makeTerminal(6.4,7.5,"ACCESS TERMINAL","terminal");makeDoor();makeRelay();makeMedkit();
  createEnemy(11,4.2,"drone");createEnemy(22.5,8.2,"drone");createEnemy(7.3,21.7,"sentinel");createEnemy(24,18.2,"sentinel");
 }
+function addLowerComplex(){
+ const floor=new THREE.Mesh(new THREE.PlaneGeometry(30,26),materials.dark);floor.rotation.x=-Math.PI/2;floor.position.set(15,0,13);floor.receiveShadow=true;levelRoot.add(floor);
+ const ceiling=new THREE.Mesh(new THREE.PlaneGeometry(30,26),mat(0x1d2929));ceiling.rotation.x=Math.PI/2;ceiling.position.set(15,4.4,13);levelRoot.add(ceiling);
+ addBox(15,2.2,0,30,4.4,.5,materials.wall);addBox(15,2.2,26,30,4.4,.5,materials.wall);
+ addBox(0,2.2,13,.5,4.4,26,materials.wall);addBox(30,2.2,13,.5,4.4,26,materials.wall);
+ addBox(15,2.2,5.375,.5,4.4,10.75,materials.wall);
+ addBox(15,2.2,19.625,.5,4.4,12.75,materials.wall);
+ addBox(7.8,2.1,16,.45,4.2,7.5,materials.wall);
+ addBox(22.6,2.1,13,.45,4.2,6.5,materials.wall);
+ for(let x=2;x<=28;x+=4){
+  addBox(x,4.12,5,.14,.14,8,materials.trim,false);
+  addBox(x,4.12,20,.14,.14,8,materials.trim,false);
+ }
+ for(const [x,z] of [[2,2],[8,2],[22,2],[28,2],[2,24],[8,24],[22,24],[28,24]])addBox(x,2.05,z,.3,4.1,.3,materials.trim,false);
+ addPointLight(4,3.6,3,0x77c9ba,12,8);addPointLight(11,3.6,8,0xc28d48,9,7);
+ addPointLight(18,3.6,15,0x77a9a4,10,8);addPointLight(25,3.6,7,0xb56b4d,10,8);
+ addPointLight(25,3.6,22,0x79c8c6,14,9);
+ addConsole(5.5,8.3);addConsole(26,5.1);addCrate(9,2,4.4);addCrate(19,2,7.2);addCrate(27,2,16.3);
+}
+function buildChapterTwo(){
+ addLowerComplex();makeTerminal(5.6,5.4,"LOWER ACCESS TERMINAL","terminal");
+ makeDoor(15,12,"PUMP HALL BULKHEAD");makeCoolantValve(23,5.8);makeFreightLift(25,21.7);
+ createEnemy(10.2,9.5,"drone");createEnemy(21.3,11.1,"sentinel");createEnemy(23.1,18.2,"warden");
+}
+function build(){if(world.chapter===2)buildChapterTwo();else buildChapterOne();}
 build();
+syncChapterDisplay();
 
 const weapon=new THREE.Group();camera.add(weapon);scene.add(camera);
 const gunBody=new THREE.Mesh(new THREE.BoxGeometry(.22,.22,.72),mat(0x303a38,.45,.55));gunBody.position.set(.34,-.31,-.62);weapon.add(gunBody);
@@ -131,38 +195,95 @@ const muzzle=new THREE.PointLight(0xffc56f,0,3);muzzle.position.set(.34,-.28,-1.
 function collides(x,z){
  const r=player.radius;
  for(const b of blockers){if(x+r>b.minX&&x-r<b.maxX&&z+r>b.minZ&&z-r<b.maxZ)return true;}
- if(!world.doorOpen){const dx=x-17.2,dz=z-11.4;if(Math.abs(dx)<.38&&Math.abs(dz)<1.35)return true;}
+ for(const door of interactables){
+  if(door.type!=="door"||door.opened)continue;
+  if(Math.abs(x-door.x)<door.halfX+player.radius&&Math.abs(z-door.z)<door.halfZ+player.radius)return true;
+ }
  return false;
 }
 function showToast(text,duration=2.4){ui.toast.textContent=text;ui.toast.classList.add("show");world.toastTime=duration;}
-const objectiveLabels=["Reach the access terminal","Open the security bulkhead","Reach the emergency relay","Relay signal restored"];
-function setObjective(n){world.objective=n;ui.objective.textContent=objectiveLabels[n]||objectiveLabels[4];}
+const objectives={
+ 1:["Reach the access terminal","Open the security bulkhead","Reach the emergency relay","Relay signal restored"],
+ 2:["Reach the lower access terminal","Open the pump hall bulkhead","Restore coolant pressure","Reach the freight elevator"]
+};
+function setObjective(n){
+ world.objective=n;
+ const labels=objectives[world.chapter]||objectives[1];
+ ui.objective.textContent=labels[n]||labels[labels.length-1];
+}
+function syncChapterDisplay(){
+ const lower=world.chapter===2;
+ ui.sectorName.textContent=lower?"LOWER COMPLEX":"QUIET WING";
+ ui.sectorNumber.textContent=lower?"02":"01";
+ ui.chapterMeta.textContent=lower?"CHAPTER 02 · THE LOWER COMPLEX":"CHAPTER 01 · THE QUIET WING";
+ ui.titleCopy.textContent=lower
+  ?"Beneath the quiet wing, the coolant pumps are running without a crew. Restore pressure and reach the freight lift."
+  :"A research station has gone silent. The emergency relay is still transmitting from somewhere below the facility.";
+ $("start").textContent=lower?"DESCEND TO LOWER COMPLEX":"ENTER THE FACILITY";
+}
 function updateHud(){ui.health.textContent=Math.max(0,Math.ceil(world.health));ui.healthBar.style.width=Math.max(0,world.health)+"%";ui.ammo.textContent=world.ammo;}
 function start(){
- resetGame();ui.title.classList.add("hidden");ui.pause.classList.add("hidden");ui.end.classList.add("hidden");ui.hud.classList.remove("hidden");ui.hint.classList.remove("hidden");world.running=true;world.ended=false;$("game").requestPointerLock?.();showToast("QUIET WING // SECURITY ALERT",3);
+ resetGame();campaign.currentChapter=world.chapter;saveCampaign();syncChapterDisplay();
+ ui.title.classList.add("hidden");ui.pause.classList.add("hidden");ui.end.classList.add("hidden");
+ ui.hud.classList.remove("hidden");ui.hint.classList.remove("hidden");
+ world.running=true;world.ended=false;$("game").requestPointerLock?.();
+ showToast(world.chapter===2&&campaign.checkpoint==="lower-coolant"?"CHECKPOINT RESTORED // PUMP HALL":"PUMP HALL // PRESSURE WARNING",3);
+}
+function startChapter(chapter){
+ world.chapter=Math.max(1,Math.min(campaign.unlockedChapter,chapter));
+ if(world.chapter===1)campaign.checkpoint=null;
+ campaign.currentChapter=world.chapter;saveCampaign();start();
 }
 function clearLevel(){
- levelRoot.traverse(object=>{
-  if(object.geometry)object.geometry.dispose();
- });
- levelRoot.clear();
- blockers.length=0;
- enemies.length=0;
- interactables.length=0;
- effects.length=0;
+ levelRoot.traverse(object=>{if(object.geometry)object.geometry.dispose();});
+ levelRoot.clear();blockers.length=0;enemies.length=0;interactables.length=0;effects.length=0;
 }
 function resetGame(){
- world.health=100;world.ammo=18;world.reload=0;world.fireCd=0;world.damageCd=0;world.objective=0;world.terminal=false;world.doorOpen=false;world.relay=false;world.score=0;world.ended=false;world.running=false;
- player.position.set(2,1.68,2);camera.position.copy(player.position);camera.rotation.set(0,0,0);camera.rotation.order="YXZ";
- clearLevel();
- build();setObjective(0);updateHud();
+ world.health=100;world.ammo=18;world.reload=0;world.fireCd=0;world.damageCd=0;world.objective=0;
+ world.terminal=false;world.doorOpen=false;world.relay=false;world.coolantRestored=false;
+ world.score=0;world.ended=false;world.running=false;
+ clearLevel();build();
+ if(world.chapter===2&&campaign.checkpoint==="lower-coolant"){
+  world.terminal=true;world.doorOpen=true;world.coolantRestored=true;
+  const terminal=interactables.find(o=>o.type==="terminal");
+  if(terminal){terminal.used=true;if(terminal.group.children[1])terminal.group.children[1].material=materials.amber;}
+  const door=interactables.find(o=>o.type==="door");
+  if(door){door.used=true;door.opened=true;door.group.position.y=4.2;door.group.visible=false;}
+  const valve=interactables.find(o=>o.type==="coolant");
+  if(valve)valve.used=true;
+  player.position.set(18.2,1.68,14.7);setObjective(3);
+ }else{
+  player.position.set(2,1.68,2);setObjective(0);
+ }
+ camera.position.copy(player.position);camera.rotation.set(0,0,0);camera.rotation.order="YXZ";
+ updateHud();
+}
+function saveCheckpoint(name){
+ campaign.currentChapter=world.chapter;campaign.checkpoint=name;saveCampaign();
+ showToast("CHECKPOINT STORED // "+name.toUpperCase(),2);
 }
 function pause(){if(!world.running)return;world.running=false;ui.pause.classList.remove("hidden");ui.hint.classList.add("hidden");document.exitPointerLock?.();}
 function resume(){ui.pause.classList.add("hidden");world.running=true;ui.hint.classList.remove("hidden");$("game").requestPointerLock?.();}
 function finish(win){
- world.running=false;world.ended=true;ui.endHeading.textContent=win?"SIGNAL FOUND":"SUIT FAILURE";ui.endCopy.textContent=win?"The emergency relay is online. A response answers from far below the station. Chapter complete.":"The facility remains silent. Use cover, keep moving and conserve your energy cells.";ui.end.classList.remove("hidden");ui.hint.classList.add("hidden");document.exitPointerLock?.();
+ world.running=false;world.ended=true;ui.nextChapter.classList.add("hidden");
+ $("again").textContent=world.chapter===2?"REPLAY CHAPTER 02":"REPLAY CHAPTER 01";
+ if(win&&world.chapter===1){
+  campaign.unlockedChapter=Math.max(campaign.unlockedChapter,2);campaign.currentChapter=2;saveCampaign();
+  ui.endHeading.textContent="SIGNAL FOUND";
+  ui.endCopy.textContent="The emergency relay answers. Deep below the station, a freight lift powers on — and something moves in the pump hall.";
+  ui.nextChapter.classList.remove("hidden");
+ }else if(win){
+  campaign.currentChapter=2;campaign.checkpoint=null;saveCampaign();
+  ui.endHeading.textContent="LOWER COMPLEX SECURED";
+  ui.endCopy.textContent="Coolant pressure is stable. The freight lift descends into an uncharted section of the facility. The signal continues.";
+ }else{
+  ui.endHeading.textContent="SUIT FAILURE";
+  ui.endCopy.textContent="The facility remains hostile. Your last checkpoint is available; regroup and try again.";
+ }
+ ui.end.classList.remove("hidden");ui.hint.classList.add("hidden");document.exitPointerLock?.();
 }
 $("start").addEventListener("click",start);$("resume").addEventListener("click",resume);$("restart").addEventListener("click",start);$("again").addEventListener("click",start);
+ui.nextChapter.addEventListener("click",()=>startChapter(2));
 document.addEventListener("pointerlockchange",()=>{world.locked=document.pointerLockElement===$("game");});
 document.addEventListener("mousemove",e=>{if(world.running&&world.locked){camera.rotation.y-=e.movementX*.0022;camera.rotation.x-=e.movementY*.0018;camera.rotation.x=THREE.MathUtils.clamp(camera.rotation.x,-1.45,1.45);}});
 document.addEventListener("keydown",e=>{keys.add(e.code);if(["Space","ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.code))e.preventDefault();if(e.code==="Escape"&&world.running)pause();if(e.code==="KeyE"&&world.running)interact();if(e.code==="KeyR"&&world.running)reload();});
@@ -177,7 +298,7 @@ function shoot(){
  const targets=enemies.filter(e=>e.alive).map(e=>e.group);
  const enemyHits=raycaster.intersectObjects(targets,true);
  const obstacles=blockers.map(b=>b.mesh);
- if(!world.doorOpen){const door=interactables.find(o=>o.type==="door");if(door)obstacles.push(door.group);}
+ for(const door of interactables)if(door.type==="door"&&!door.opened)obstacles.push(door.group);
  const obstacleHits=raycaster.intersectObjects(obstacles,true);
  if(enemyHits.length&&(!obstacleHits.length||enemyHits[0].distance<obstacleHits[0].distance)){
   const obj=enemyHits[0].object;
@@ -191,12 +312,38 @@ function shoot(){
 }
 function isChildOf(obj,parent){let p=obj;while(p){if(p===parent)return true;p=p.parent;}return false;}
 function interact(){
- let nearest=null,best=Infinity;for(const o of interactables){if(o.used)continue;const d=Math.hypot(o.x-player.position.x,o.z-player.position.z);if(d<o.range&&d<best){best=d;nearest=o;}}
+ let nearest=null,best=Infinity;
+ for(const o of interactables){
+  if(o.used)continue;
+  const d=Math.hypot(o.x-player.position.x,o.z-player.position.z);
+  if(d<o.range&&d<best){best=d;nearest=o;}
+ }
  if(!nearest){showToast("NO INTERACTIVE DEVICE IN RANGE",1.2);return;}
- if(nearest.type==="terminal"){world.terminal=true;nearest.used=true;nearest.group.children[1].material=materials.amber;setObjective(1);showToast("ACCESS GRANTED // POWER ROUTING RESTORED",2.5);}
- else if(nearest.type==="door"){if(!world.terminal){showToast("BULKHEAD LOCKED — RESTORE POWER FIRST",1.8);return;}world.doorOpen=true;nearest.used=true;nearest.group.userData.opening=true;setObjective(2);showToast("SECURITY BULKHEAD OPEN",1.8);}
- else if(nearest.type==="relay"){if(!world.doorOpen){showToast("RELAY ACCESS BLOCKED",1.4);return;}world.relay=true;nearest.used=true;setObjective(3);showToast("EMERGENCY RELAY ONLINE",1.5);setTimeout(()=>finish(true),900);}
- else if(nearest.type==="med"){nearest.used=true;levelRoot.remove(nearest.group);world.health=Math.min(100,world.health+35);updateHud();showToast("SUIT PATCH APPLIED +35",1.5);}
+ if(nearest.type==="terminal"){
+  world.terminal=true;nearest.used=true;
+  if(nearest.group.children[1])nearest.group.children[1].material=materials.amber;
+  setObjective(1);
+  showToast(world.chapter===2?"LOWER ACCESS ONLINE // PUMP HALL POWER RESTORED":"ACCESS GRANTED // POWER ROUTING RESTORED",2.5);
+ }else if(nearest.type==="door"){
+  if(!world.terminal){showToast("BULKHEAD LOCKED — RESTORE POWER FIRST",1.8);return;}
+  world.doorOpen=true;nearest.used=true;nearest.opened=true;nearest.group.userData.opening=true;
+  setObjective(2);showToast("PRESSURE BULKHEAD OPEN",1.8);
+ }else if(nearest.type==="relay"){
+  if(!world.doorOpen){showToast("RELAY ACCESS BLOCKED",1.4);return;}
+  world.relay=true;nearest.used=true;setObjective(3);
+  showToast("EMERGENCY RELAY ONLINE",1.5);setTimeout(()=>finish(true),900);
+ }else if(nearest.type==="coolant"){
+  if(!world.doorOpen){showToast("PUMP HALL IS STILL SEALED",1.4);return;}
+  world.coolantRestored=true;nearest.used=true;nearest.group.rotation.y=.8;
+  setObjective(3);saveCheckpoint("lower-coolant");
+  showToast("COOLANT PRESSURE RESTORED // FREIGHT LIFT POWERED",2.2);
+ }else if(nearest.type==="lift"){
+  if(!world.coolantRestored){showToast("LIFT LOCKED — RESTORE COOLANT PRESSURE FIRST",1.8);return;}
+  nearest.used=true;showToast("FREIGHT LIFT ENGAGED",1.2);setTimeout(()=>finish(true),900);
+ }else if(nearest.type==="med"){
+  nearest.used=true;levelRoot.remove(nearest.group);
+  world.health=Math.min(100,world.health+35);updateHud();showToast("SUIT PATCH APPLIED +35",1.5);
+ }
 }
 function hurt(amount){world.health-=amount;ui.damage.style.opacity=".8";setTimeout(()=>ui.damage.style.opacity="0",110);updateHud();if(world.health<=0)finish(false);}
 function updatePlayer(dt){
@@ -224,7 +371,9 @@ function drawMap(){
  const c=ui.map.getContext("2d"),w=160,h=160;c.clearRect(0,0,w,h);c.fillStyle="#172522";c.fillRect(0,0,w,h);
  const sx=w/30,sz=h/26;c.fillStyle="#65736a";
  for(const b of blockers)c.fillRect(b.minX*sx,b.minZ*sz,(b.maxX-b.minX)*sx,(b.maxZ-b.minZ)*sz);
- if(!world.doorOpen){c.fillStyle="#b58a50";c.fillRect(17.2*sx-2,11.4*sz-7,4,14);}
+ for(const door of interactables)if(door.type==="door"&&!door.opened){
+  c.fillStyle="#b58a50";c.fillRect(door.x*sx-2,door.z*sz-7,4,14);
+ }
  for(const e of enemies)if(e.alive){c.fillStyle="#d77a58";c.fillRect(e.x*sx-2,e.z*sz-2,4,4);}
  for(const o of interactables)if(!o.used){c.fillStyle="#d5ad68";c.fillRect(o.x*sx-2,o.z*sz-2,4,4);}
  c.save();c.translate(player.position.x*sx,player.position.z*sz);c.rotate(-camera.rotation.y);c.fillStyle="#e5eee4";c.beginPath();c.moveTo(0,-6);c.lineTo(-4,4);c.lineTo(4,4);c.fill();c.restore();
