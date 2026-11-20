@@ -23,9 +23,9 @@
       <div class="eyebrow">AN ORIGINAL FAN-MADE SCI-FI FPS</div>
       <h1>AFTER<span>SIGNAL</span></h1>
       <div class="subtitle">A BLACK MESA INCIDENT</div>
-      <p>A research station has gone silent. The emergency relay is still transmitting from somewhere below the facility.</p>
+      <p id="title-copy">A research station has gone silent. The emergency relay is still transmitting from somewhere below the facility.</p>
       <button id="start" class="primary">ENTER THE FACILITY</button>
-      <div class="meta">CHAPTER 01 · THE QUIET WING</div>
+      <div id="chapter-meta" class="meta">CHAPTER 01 · THE QUIET WING</div>
       <div class="note">Three-dimensional browser prototype · Original story, map and assets</div>
     </div>
   </section>
@@ -43,14 +43,15 @@
     <div class="panel menu-panel">
       <div class="eyebrow">RELAY STATUS</div><h2 id="end-heading">SIGNAL FOUND</h2>
       <p id="end-copy">The emergency relay is online. A response answers from far below the station.</p>
-      <button id="again" class="primary">PLAY AGAIN</button>
+      <button id="again" class="primary">REPLAY CHAPTER 01</button>
+      <button id="next-chapter" class="primary hidden">NEXT CHAPTER — THE LOWER COMPLEX</button>
     </div>
   </section>
 
   <div id="hud" class="hidden">
     <header class="topbar">
       <div class="objective panel-small"><div class="label">CURRENT OBJECTIVE</div><div id="objective-text">Reach the access terminal</div></div>
-      <div class="sector panel-small"><i></i> QUIET WING <b>01</b></div>
+      <div class="sector panel-small"><i></i> <span id="sector-name">QUIET WING</span> <b id="sector-number">01</b></div>
     </header>
     <div class="bottom">
       <div class="status panel-small">
