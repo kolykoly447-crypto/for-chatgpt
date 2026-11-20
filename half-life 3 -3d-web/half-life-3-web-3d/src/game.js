@@ -227,7 +227,7 @@ function start(){
  ui.title.classList.add("hidden");ui.pause.classList.add("hidden");ui.end.classList.add("hidden");
  ui.hud.classList.remove("hidden");ui.hint.classList.remove("hidden");
  world.running=true;world.ended=false;$("game").requestPointerLock?.();
- showToast(world.chapter===2&&campaign.checkpoint==="lower-coolant"?"CHECKPOINT RESTORED // PUMP HALL":"QUIET WING // SECURITY ALERT",3);
+ showToast(world.chapter===2&&campaign.checkpoint==="lower-coolant"?"CHECKPOINT RESTORED // PUMP HALL":"PUMP HALL // PRESSURE WARNING",3);
 }
 function startChapter(chapter){
  world.chapter=Math.max(1,Math.min(campaign.unlockedChapter,chapter));
