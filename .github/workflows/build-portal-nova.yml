@@ -27,23 +27,33 @@ jobs:
 
       - name: Verify Godot
         shell: pwsh
-        run: godot --version
+        run: |
+          $godotExe = (Get-Command godot).Source
+          Write-Host "Godot executable: $godotExe"
+          $version = Start-Process -FilePath $godotExe -ArgumentList "--version" -Wait -PassThru -NoNewWindow
+          if ($version.ExitCode -ne 0) { throw "Godot version check failed with exit code $($version.ExitCode)" }
 
       - name: Import project resources
         shell: pwsh
-        run: godot --headless --editor --path PortalNova --quit
+        run: |
+          $godotExe = (Get-Command godot).Source
+          $import = Start-Process -FilePath $godotExe -ArgumentList '--headless --editor --path "PortalNova" --quit' -Wait -PassThru -NoNewWindow
+          if ($import.ExitCode -ne 0) { throw "Godot import failed with exit code $($import.ExitCode)" }
 
       - name: Export Windows executable
         shell: pwsh
         run: |
+          $godotExe = (Get-Command godot).Source
           $buildDir = Join-Path $env:GITHUB_WORKSPACE "PortalNova\build"
           New-Item -ItemType Directory -Force -Path $buildDir | Out-Null
           $exePath = Join-Path $buildDir "PortalNova.exe"
-          godot --headless --path "PortalNova" --export-release "Windows Desktop" $exePath
+          $arguments = '--headless --path "PortalNova" --export-release "Windows Desktop" "' + $exePath + '"'
+          $export = Start-Process -FilePath $godotExe -ArgumentList $arguments -Wait -PassThru -NoNewWindow
+          if ($export.ExitCode -ne 0) { throw "Godot export failed with exit code $($export.ExitCode)" }
           if (-not (Test-Path -LiteralPath $exePath)) {
-            Write-Host "Export path did not contain the executable. Listing generated files:"
-            Get-ChildItem -Path $env:GITHUB_WORKSPACE -Filter "PortalNova.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
-            throw "Godot did not create PortalNova.exe at $exePath"
+            Write-Host "Generated files:"
+            Get-ChildItem -Path (Join-Path $env:GITHUB_WORKSPACE "PortalNova") -Recurse -File | Select-Object -ExpandProperty FullName
+            throw "Godot finished without creating PortalNova.exe at $exePath"
           }
           Get-Item -LiteralPath $exePath | Format-List FullName,Length
 
