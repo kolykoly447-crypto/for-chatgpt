@@ -36,8 +36,16 @@ jobs:
       - name: Export Windows executable
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path "PortalNova/build" | Out-Null
-          godot --headless --path PortalNova --export-release "Windows Desktop" "PortalNova/build/PortalNova.exe"
+          $buildDir = Join-Path $env:GITHUB_WORKSPACE "PortalNova\build"
+          New-Item -ItemType Directory -Force -Path $buildDir | Out-Null
+          $exePath = Join-Path $buildDir "PortalNova.exe"
+          godot --headless --path "PortalNova" --export-release "Windows Desktop" $exePath
+          if (-not (Test-Path -LiteralPath $exePath)) {
+            Write-Host "Export path did not contain the executable. Listing generated files:"
+            Get-ChildItem -Path $env:GITHUB_WORKSPACE -Filter "PortalNova.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName
+            throw "Godot did not create PortalNova.exe at $exePath"
+          }
+          Get-Item -LiteralPath $exePath | Format-List FullName,Length
 
       - name: Upload executable
         uses: actions/upload-artifact@v4
