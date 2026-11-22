@@ -1,0 +1,48 @@
+name: Build Portal Nova for Windows
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "PortalNova/**"
+      - ".github/workflows/build-portal-nova.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows:
+    name: Export Windows x86_64
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Godot 4.7.2 and export templates
+        uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.7.2
+          use-dotnet: false
+          include-templates: true
+
+      - name: Verify Godot
+        shell: pwsh
+        run: godot --version
+
+      - name: Import project resources
+        shell: pwsh
+        run: godot --headless --editor --path PortalNova --quit
+
+      - name: Export Windows executable
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "PortalNova/build" | Out-Null
+          godot --headless --path PortalNova --export-release "Windows Desktop" "PortalNova/build/PortalNova.exe"
+
+      - name: Upload executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: PortalNova-Windows-x86_64
+          path: PortalNova/build/PortalNova.exe
+          if-no-files-found: error
+          retention-days: 14
