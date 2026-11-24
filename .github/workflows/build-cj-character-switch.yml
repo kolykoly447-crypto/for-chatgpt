@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build:
-    name: Compile Forge 1.20.1 mod
+    name: Compile and smoke-test Forge 1.20.1 mod
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
@@ -33,7 +33,7 @@ jobs:
         working-directory: CJCharacterSwitch
         run: gradle --no-daemon clean build --stacktrace
 
-      - name: Verify JAR metadata
+      - name: Verify JAR metadata and embedded assets
         working-directory: CJCharacterSwitch
         shell: bash
         run: |
@@ -41,9 +41,48 @@ jobs:
           test -n "$JAR_FILE"
           jar tf "$JAR_FILE" | grep -q 'META-INF/mods.toml'
           unzip -p "$JAR_FILE" META-INF/mods.toml | grep -q 'modId="cjswitch"'
+          unzip -p "$JAR_FILE" assets/cjswitch/textures/entity/cj.png > /tmp/cj.png
+          unzip -p "$JAR_FILE" assets/cjswitch/textures/entity/cj_accessories.png > /tmp/cj_accessories.png
+          file /tmp/cj.png /tmp/cj_accessories.png
           echo "Verified Forge mod archive: $JAR_FILE"
 
+      - name: Install virtual display
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb libgl1 libgl1-mesa-dri libx11-6 libxrandr2 libxinerama1 libxcursor1 libxi6 libasound2
+
+      - name: Smoke-test Forge client startup
+        id: client-smoke
+        working-directory: CJCharacterSwitch
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          timeout --signal=TERM 120s xvfb-run -a gradle --no-daemon runClient > client-smoke.log 2>&1
+          code=$?
+          echo "runClient exit code: $code"
+          tail -n 180 client-smoke.log
+          if [ -d run/logs ]; then cp -r run/logs ../client-run-logs; fi
+          if [ -d run/crash-reports ]; then cp -r run/crash-reports ../client-crash-reports; fi
+          if [ "$code" -eq 124 ] || [ "$code" -eq 143 ]; then
+            echo "Client remained running until smoke-test timeout."
+          fi
+          exit "$code"
+
+      - name: Upload client startup diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: CJ-Character-Switch-Client-Diagnostics
+          path: |
+            CJCharacterSwitch/client-smoke.log
+            CJCharacterSwitch/client-run-logs/
+            CJCharacterSwitch/client-crash-reports/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload compiled mod
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: CJ-Character-Switch-Forge-1.20.1
