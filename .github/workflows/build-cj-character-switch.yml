@@ -1,0 +1,52 @@
+name: Build CJ Character Switch (Forge 1.20.1)
+
+on:
+  push:
+    paths:
+      - "CJCharacterSwitch/**"
+      - ".github/workflows/build-cj-character-switch.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Compile Forge 1.20.1 mod
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle 8.8
+        uses: gradle/actions/setup-gradle@v3.5.0
+        with:
+          gradle-version: "8.8"
+
+      - name: Build mod
+        working-directory: CJCharacterSwitch
+        run: gradle --no-daemon clean build --stacktrace
+
+      - name: Verify JAR metadata
+        working-directory: CJCharacterSwitch
+        shell: bash
+        run: |
+          JAR_FILE="$(find build/libs -maxdepth 1 -name '*.jar' ! -name '*-sources.jar' -print -quit)"
+          test -n "$JAR_FILE"
+          jar tf "$JAR_FILE" | grep -q 'META-INF/mods.toml'
+          unzip -p "$JAR_FILE" META-INF/mods.toml | grep -q 'modId="cjswitch"'
+          echo "Verified Forge mod archive: $JAR_FILE"
+
+      - name: Upload compiled mod
+        uses: actions/upload-artifact@v4
+        with:
+          name: CJ-Character-Switch-Forge-1.20.1
+          path: CJCharacterSwitch/build/libs/cj-character-switch-1.1.0.jar
+          if-no-files-found: error
+          retention-days: 30
