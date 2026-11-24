@@ -1,0 +1,6 @@
+{
+  "key.categories.cjswitch": "CJ Character Switch",
+  "key.cjswitch.toggle": "Переключить CJ / персонажа Minecraft",
+  "message.cjswitch.enabled": "Режим CJ включён — нажмите G, чтобы вернуться к Minecraft.",
+  "message.cjswitch.disabled": "Персонаж Minecraft восстановлен."
+}
